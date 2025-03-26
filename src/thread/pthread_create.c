@@ -68,6 +68,7 @@ _Noreturn void __pthread_exit(void *result)
 	}
 
 	__pthread_tsd_run_dtors();
+	__malloc_tls_teardown(self);
 
 	__block_app_sigs(&set);
 
@@ -319,6 +320,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	new->self = new;
 	new->tsd = (void *)tsd;
 	new->locale = &libc.global_locale;
+	new->malloc_tls = __malloc_tls_default;
 	if (attr._a_detach) {
 		new->detach_state = DT_DETACHED;
 	} else {
@@ -395,3 +397,8 @@ fail:
 
 weak_alias(__pthread_exit, pthread_exit);
 weak_alias(__pthread_create, pthread_create);
+
+static void mdummy(pthread_t p) {}
+
+weak_alias(mdummy, __malloc_init);
+weak_alias(mdummy, __malloc_tls_teardown);

@@ -6,10 +6,15 @@
 #include <errno.h>
 #include <limits.h>
 #include <sys/mman.h>
+#ifndef MI_LIBC_BUILD
 #include "libc.h"
 #include "syscall.h"
 #include "atomic.h"
 #include "futex.h"
+#else
+/* restricted version for MI_LIBC_BUILD; need struct pthread + __pthread_self */
+#include <stdint.h>
+#endif
 
 #include "pthread_arch.h"
 
@@ -58,6 +63,7 @@ struct pthread {
 	volatile int killlock[1];
 	char *dlerror_buf;
 	void *stdio_locks;
+	void *malloc_tls;
 
 	/* Part 3 -- the positions of these fields relative to
 	 * the end of the structure is external and internal ABI. */
@@ -122,6 +128,7 @@ enum {
 #define __pthread_self() ((pthread_t)__get_tp())
 #endif
 
+#ifndef MI_LIBC_BUILD
 #ifndef tls_mod_off_t
 #define tls_mod_off_t size_t
 #endif
@@ -187,6 +194,11 @@ hidden void __tl_lock(void);
 hidden void __tl_unlock(void);
 hidden void __tl_sync(pthread_t);
 
+extern hidden void * const __malloc_tls_default;
+
+hidden void __malloc_init(pthread_t);
+hidden void __malloc_tls_teardown(pthread_t);
+
 extern hidden volatile int __thread_list_lock;
 
 extern hidden volatile int __abort_lock[1];
@@ -201,5 +213,6 @@ extern hidden unsigned __default_guardsize;
 #define DEFAULT_GUARD_MAX (1<<20)
 
 #define __ATTRP_C11_THREAD ((void*)(uintptr_t)-1)
+#endif
 
 #endif

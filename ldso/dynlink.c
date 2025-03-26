@@ -1492,6 +1492,7 @@ void __libc_exit_fini()
 			fpaddr(p, dyn[DT_FINI])();
 #endif
 	}
+	__malloc_tls_teardown(self);
 }
 
 void __ldso_atfork(int who)
@@ -1826,6 +1827,9 @@ void __dls3(size_t *sp, size_t *auxv)
 	/* Activate error handler function */
 	error = error_impl;
 
+	/* Here we can initialize the allocator */
+	__malloc_init(__pthread_self());
+
 	/* If the main program was already loaded by the kernel,
 	 * AT_PHDR will point to some location other than the dynamic
 	 * linker's program headers. */
@@ -2029,9 +2033,12 @@ void __dls3(size_t *sp, size_t *auxv)
 	/* Actual copying to new TLS needs to happen after relocations,
 	 * since the TLS images might have contained relocated addresses. */
 	if (initial_tls != builtin_tls) {
-		if (__init_tp(__copy_tls(initial_tls)) < 0) {
+		void *mtls = __pthread_self()->malloc_tls;
+		pthread_t ns = __copy_tls(initial_tls);
+		if (__init_tp(ns) < 0) {
 			a_crash();
 		}
+		ns->malloc_tls = mtls;
 	} else {
 		size_t tmp_tls_size = libc.tls_size;
 		pthread_t self = __pthread_self();

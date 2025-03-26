@@ -32,6 +32,10 @@ weak_alias(allzerop, __malloc_allzerop);
 
 void *calloc(size_t m, size_t n)
 {
+#ifdef LIBC_CALLOC_EXTERNAL
+	if (!__malloc_replaced)
+		return __libc_calloc(m, n);
+#endif
 	if (n && m > (size_t)-1/n) {
 		errno = ENOMEM;
 		return 0;

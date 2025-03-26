@@ -7,6 +7,8 @@
 
 #include "meta.h"
 
+hidden void * const __malloc_tls_default = NULL;
+
 LOCK_OBJ_DEF;
 
 const uint16_t size_classes[] = {

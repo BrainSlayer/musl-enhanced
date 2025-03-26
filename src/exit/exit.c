@@ -4,6 +4,7 @@
 #include "pthread_impl.h"
 #include "atomic.h"
 #include "syscall.h"
+#include "pthread_impl.h"
 
 static void dummy()
 {
@@ -23,6 +24,7 @@ static void libc_exit_fini(void)
 	for (; a>(uintptr_t)&__fini_array_start; a-=sizeof(void(*)()))
 		(*(void (**)())(a-sizeof(void(*)())))();
 	_fini();
+	__malloc_tls_teardown(__pthread_self());
 }
 
 weak_alias(libc_exit_fini, __libc_exit_fini);

@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <ftw.h>
 #include <dirent.h>
 #include <fcntl.h>
@@ -74,8 +75,20 @@ static int do_nftw(char *path, int (*fn)(const char *, const struct stat *, int,
 		if (!fd_limit) close(dfd);
 	}
 
-	if (!(flags & FTW_DEPTH) && (r=fn(path, &st, type, &lev)))
-		return r;
+	if (!(flags & FTW_DEPTH) && (r=fn(path, &st, type, &lev))) {
+		if (flags & FTW_ACTIONRETVAL)
+			switch (r) {
+			case FTW_SKIP_SUBTREE:
+				h = NULL;
+			case FTW_CONTINUE:
+				break;
+			case FTW_SKIP_SIBLINGS:
+			case FTW_STOP:
+				return r;
+			}
+		else
+			return r;
+	}
 
 	for (; h; h = h->chain)
 		if (h->dev == st.st_dev && h->ino == st.st_ino)
@@ -103,7 +116,10 @@ static int do_nftw(char *path, int (*fn)(const char *, const struct stat *, int,
 				strcpy(path+j+1, de->d_name);
 				if ((r=do_nftw(path, fn, fd_limit-1, flags, &new))) {
 					closedir(d);
-					return r;
+					if ((flags & FTW_ACTIONRETVAL) && r == FTW_SKIP_SIBLINGS)
+						break;
+					else
+						return r;
 				}
 			}
 			closedir(d);
@@ -114,8 +130,16 @@ static int do_nftw(char *path, int (*fn)(const char *, const struct stat *, int,
 	}
 
 	path[l] = 0;
-	if ((flags & FTW_DEPTH) && (r=fn(path, &st, type, &lev)))
-		return r;
+	if ((flags & FTW_DEPTH) && (r=fn(path, &st, type, &lev))) {
+		if (flags & FTW_ACTIONRETVAL)
+			switch (r) {
+				case FTW_SKIP_SIBLINGS:
+				case FTW_STOP:
+					return r;
+			}
+		else
+			return r;
+	}
 
 	return 0;
 }
@@ -140,3 +164,5 @@ int nftw(const char *path, int (*fn)(const char *, const struct stat *, int, str
 	pthread_setcancelstate(cs, 0);
 	return r;
 }
+
+#undef nftw64

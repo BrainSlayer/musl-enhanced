@@ -24,6 +24,7 @@ int __init_tp(void *p)
 	td->robust_list.head = &td->robust_list.head;
 	td->sysinfo = __sysinfo;
 	td->next = td->prev = td;
+	td->malloc_tls = __malloc_tls_default;
 	return 0;
 }
 
@@ -86,6 +87,7 @@ static void static_init_tls(size_t *aux)
 	Phdr *phdr, *tls_phdr=0;
 	size_t base = 0;
 	void *mem;
+	pthread_t self;
 
 	for (p=(void *)aux[AT_PHDR],n=aux[AT_PHNUM]; n; n--,p+=aux[AT_PHENT]) {
 		phdr = (void *)p;
@@ -146,8 +148,12 @@ static void static_init_tls(size_t *aux)
 	}
 
 	/* Failure to initialize thread pointer is always fatal. */
-	if (__init_tp(__copy_tls(mem)) < 0)
+	self = __copy_tls(mem);
+	if (__init_tp(self) < 0)
 		a_crash();
+
+	/* Initialize malloc. */
+	__malloc_init(self);
 }
 
 weak_alias(static_init_tls, __init_tls);
